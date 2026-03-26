@@ -39,22 +39,48 @@ col1, col2 = st.columns([1, 2])
 with col1:
     st.header("1. Input Data")
     
-    st.info("💡 **First time here?** Load the benchmark 3D Space Truss to see how data is formatted.")
-    if st.button("📚 Load 3D Tetrahedron Benchmark"):
+    st.info("💡 **Benchmark Model:** Load a realistic 3D Transmission Tower segment to validate spatial kinematics and asymmetric loading.")
+    if st.button("🗼 Load 3D Transmission Tower Benchmark"):
+        # 9-Node Tapered Transmission Tower Segment
         st.session_state['nodes_data'] = pd.DataFrame([
-            [0.0, 0.0, 0.0, 1, 1, 1],  
-            [3.0, 0.0, 0.0, 0, 1, 1],  
-            [1.5, 3.0, 0.0, 0, 0, 1],  
-            [1.5, 1.5, 4.0, 0, 0, 0]   
+            # Base Level (Z=0) - Fully Restrained
+            [0.0, 0.0, 0.0, 1, 1, 1],  # Node 1
+            [4.0, 0.0, 0.0, 1, 1, 1],  # Node 2
+            [4.0, 4.0, 0.0, 1, 1, 1],  # Node 3
+            [0.0, 4.0, 0.0, 1, 1, 1],  # Node 4
+            # Mid Level (Z=4) - Free
+            [1.0, 1.0, 4.0, 0, 0, 0],  # Node 5
+            [3.0, 1.0, 4.0, 0, 0, 0],  # Node 6
+            [3.0, 3.0, 4.0, 0, 0, 0],  # Node 7
+            [1.0, 3.0, 4.0, 0, 0, 0],  # Node 8
+            # Peak Level (Z=8) - Free
+            [2.0, 2.0, 8.0, 0, 0, 0]   # Node 9
         ], columns=["X", "Y", "Z", "Restrain_X", "Restrain_Y", "Restrain_Z"])
         
+        # 20 Members (Standard Steel Angles)
+        E_steel = 2e11  # 200 GPa
+        A_leg = 0.005   # Cross-sectional area in sq.m
+        
         st.session_state['members_data'] = pd.DataFrame([
-            [1, 2, 0.01, 2e11], [2, 3, 0.01, 2e11], [3, 1, 0.01, 2e11], 
-            [1, 4, 0.01, 2e11], [2, 4, 0.01, 2e11], [3, 4, 0.01, 2e11]   
+            # Base to Mid (Main Legs)
+            [1, 5, A_leg, E_steel], [2, 6, A_leg, E_steel], 
+            [3, 7, A_leg, E_steel], [4, 8, A_leg, E_steel],
+            # Mid Horizontal Ring
+            [5, 6, A_leg, E_steel], [6, 7, A_leg, E_steel], 
+            [7, 8, A_leg, E_steel], [8, 5, A_leg, E_steel],
+            # Base to Mid (Cross-Bracing)
+            [1, 6, A_leg, E_steel], [2, 5, A_leg, E_steel], 
+            [2, 7, A_leg, E_steel], [3, 6, A_leg, E_steel], 
+            [3, 8, A_leg, E_steel], [4, 7, A_leg, E_steel], 
+            [4, 5, A_leg, E_steel], [1, 8, A_leg, E_steel],
+            # Mid to Peak (Top Pyramid)
+            [5, 9, A_leg, E_steel], [6, 9, A_leg, E_steel], 
+            [7, 9, A_leg, E_steel], [8, 9, A_leg, E_steel]
         ], columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
         
+        # Combined Loading (Cable weight + Diagonal Wind Load)
         st.session_state['loads_data'] = pd.DataFrame([
-            [4, 0.0, 50000.0, -100000.0]  
+            [9, 15000.0, 10000.0, -50000.0]  # Fx (wind), Fy (wind), Fz (cable weight)
         ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
         
         clear_results()
