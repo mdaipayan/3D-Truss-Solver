@@ -39,48 +39,103 @@ col1, col2 = st.columns([1, 2])
 with col1:
     st.header("1. Input Data")
     
-    st.info("💡 **Benchmark Model:** Load a realistic 3D Transmission Tower segment to validate spatial kinematics and asymmetric loading.")
-    if st.button("🗼 Load 3D Transmission Tower Benchmark"):
-        # 9-Node Tapered Transmission Tower Segment
+    st.info("💡 **Benchmark Model:** Load a 22-Node, 69-Member 3D Transmission Tower to validate spatial kinematics and asymmetric wind/cable loading.")
+    if st.button("🗼 Load 3D High-Voltage Tower Benchmark"):
+        
+        # 22-Node Tapered Transmission Tower
+        # Base at Z=0, First tier at Z=10, Cross-arms at Z=20 and Z=26, Peaks at Z=32
         st.session_state['nodes_data'] = pd.DataFrame([
-            # Base Level (Z=0) - Fully Restrained
-            [0.0, 0.0, 0.0, 1, 1, 1],  # Node 1
-            [4.0, 0.0, 0.0, 1, 1, 1],  # Node 2
-            [4.0, 4.0, 0.0, 1, 1, 1],  # Node 3
-            [0.0, 4.0, 0.0, 1, 1, 1],  # Node 4
-            # Mid Level (Z=4) - Free
-            [1.0, 1.0, 4.0, 0, 0, 0],  # Node 5
-            [3.0, 1.0, 4.0, 0, 0, 0],  # Node 6
-            [3.0, 3.0, 4.0, 0, 0, 0],  # Node 7
-            [1.0, 3.0, 4.0, 0, 0, 0],  # Node 8
-            # Peak Level (Z=8) - Free
-            [2.0, 2.0, 8.0, 0, 0, 0]   # Node 9
+            # ---- Level 0: Base (Fully Restrained) ----
+            [4.0, 4.0, 0.0, 1, 1, 1],   # Node 1
+            [4.0, -4.0, 0.0, 1, 1, 1],  # Node 2
+            [-4.0, -4.0, 0.0, 1, 1, 1], # Node 3
+            [-4.0, 4.0, 0.0, 1, 1, 1],  # Node 4
+            
+            # ---- Level 1: Lower Tapered Body ----
+            [3.0, 3.0, 10.0, 0, 0, 0],   # Node 5
+            [3.0, -3.0, 10.0, 0, 0, 0],  # Node 6
+            [-3.0, -3.0, 10.0, 0, 0, 0], # Node 7
+            [-3.0, 3.0, 10.0, 0, 0, 0],  # Node 8
+            
+            # ---- Level 2: Lower Cross-Arm Body ----
+            [2.0, 2.0, 20.0, 0, 0, 0],   # Node 9
+            [2.0, -2.0, 20.0, 0, 0, 0],  # Node 10
+            [-2.0, -2.0, 20.0, 0, 0, 0], # Node 11
+            [-2.0, 2.0, 20.0, 0, 0, 0],  # Node 12
+            # Lower Cross-Arm Tips (Extending along Y-axis)
+            [0.0, 7.0, 20.0, 0, 0, 0],   # Node 13 (+Y Arm)
+            [0.0, -7.0, 20.0, 0, 0, 0],  # Node 14 (-Y Arm)
+            
+            # ---- Level 3: Upper Cross-Arm Body ----
+            [1.5, 1.5, 26.0, 0, 0, 0],   # Node 15
+            [1.5, -1.5, 26.0, 0, 0, 0],  # Node 16
+            [-1.5, -1.5, 26.0, 0, 0, 0], # Node 17
+            [-1.5, 1.5, 26.0, 0, 0, 0],  # Node 18
+            # Upper Cross-Arm Tips
+            [0.0, 6.0, 26.0, 0, 0, 0],   # Node 19 (+Y Arm)
+            [0.0, -6.0, 26.0, 0, 0, 0],  # Node 20 (-Y Arm)
+            
+            # ---- Level 4: Shield Wire Peaks ----
+            [0.0, 1.5, 32.0, 0, 0, 0],   # Node 21
+            [0.0, -1.5, 32.0, 0, 0, 0]   # Node 22
         ], columns=["X", "Y", "Z", "Restrain_X", "Restrain_Y", "Restrain_Z"])
         
-        # 20 Members (Standard Steel Angles)
+        # 69 Members (Standard Steel Sections)
         E_steel = 2e11  # 200 GPa
-        A_leg = 0.005   # Cross-sectional area in sq.m
+        A_leg = 0.006   # Main legs
+        A_brace = 0.003 # Bracing and arms
         
         st.session_state['members_data'] = pd.DataFrame([
-            # Base to Mid (Main Legs)
-            [1, 5, A_leg, E_steel], [2, 6, A_leg, E_steel], 
-            [3, 7, A_leg, E_steel], [4, 8, A_leg, E_steel],
-            # Mid Horizontal Ring
-            [5, 6, A_leg, E_steel], [6, 7, A_leg, E_steel], 
-            [7, 8, A_leg, E_steel], [8, 5, A_leg, E_steel],
-            # Base to Mid (Cross-Bracing)
-            [1, 6, A_leg, E_steel], [2, 5, A_leg, E_steel], 
-            [2, 7, A_leg, E_steel], [3, 6, A_leg, E_steel], 
-            [3, 8, A_leg, E_steel], [4, 7, A_leg, E_steel], 
-            [4, 5, A_leg, E_steel], [1, 8, A_leg, E_steel],
-            # Mid to Peak (Top Pyramid)
-            [5, 9, A_leg, E_steel], [6, 9, A_leg, E_steel], 
-            [7, 9, A_leg, E_steel], [8, 9, A_leg, E_steel]
+            # 1. MAIN VERTICAL LEGS
+            [1,5,A_leg,E_steel], [2,6,A_leg,E_steel], [3,7,A_leg,E_steel], [4,8,A_leg,E_steel], # L0-L1
+            [5,9,A_leg,E_steel], [6,10,A_leg,E_steel], [7,11,A_leg,E_steel], [8,12,A_leg,E_steel], # L1-L2
+            [9,15,A_leg,E_steel], [10,16,A_leg,E_steel], [11,17,A_leg,E_steel], [12,18,A_leg,E_steel], # L2-L3
+            
+            # 2. HORIZONTAL RINGS
+            [5,6,A_brace,E_steel], [6,7,A_brace,E_steel], [7,8,A_brace,E_steel], [8,5,A_brace,E_steel], # L1
+            [9,10,A_brace,E_steel], [10,11,A_brace,E_steel], [11,12,A_brace,E_steel], [12,9,A_brace,E_steel], # L2
+            [15,16,A_brace,E_steel], [16,17,A_brace,E_steel], [17,18,A_brace,E_steel], [18,15,A_brace,E_steel], # L3
+            
+            # 3. X-BRACING (FACES)
+            # Base to L1
+            [1,6,A_brace,E_steel], [2,5,A_brace,E_steel], [2,7,A_brace,E_steel], [3,6,A_brace,E_steel],
+            [3,8,A_brace,E_steel], [4,7,A_brace,E_steel], [4,5,A_brace,E_steel], [1,8,A_brace,E_steel],
+            # L1 to L2
+            [5,10,A_brace,E_steel], [6,9,A_brace,E_steel], [6,11,A_brace,E_steel], [7,10,A_brace,E_steel],
+            [7,12,A_brace,E_steel], [8,11,A_brace,E_steel], [8,9,A_brace,E_steel], [5,12,A_brace,E_steel],
+            # L2 to L3
+            [9,16,A_brace,E_steel], [10,15,A_brace,E_steel], [10,17,A_brace,E_steel], [11,16,A_brace,E_steel],
+            [11,18,A_brace,E_steel], [12,17,A_brace,E_steel], [12,15,A_brace,E_steel], [9,18,A_brace,E_steel],
+            
+            # 4. LOWER CROSS-ARMS (Tips N13, N14)
+            [13,9,A_brace,E_steel], [13,12,A_brace,E_steel], # +Y Arm horizontal ties
+            [13,15,A_brace,E_steel], [13,18,A_brace,E_steel], # +Y Arm upward suspension struts
+            [14,10,A_brace,E_steel], [14,11,A_brace,E_steel], # -Y Arm horizontal ties
+            [14,16,A_brace,E_steel], [14,17,A_brace,E_steel], # -Y Arm upward suspension struts
+            
+            # 5. UPPER CROSS-ARMS (Tips N19, N20)
+            [19,15,A_brace,E_steel], [19,18,A_brace,E_steel], # +Y Arm horizontal ties
+            [19,21,A_brace,E_steel], # +Y Arm upward strut to peak
+            [20,16,A_brace,E_steel], [20,17,A_brace,E_steel], # -Y Arm horizontal ties
+            [20,22,A_brace,E_steel], # -Y Arm upward strut to peak
+            
+            # 6. TOP PEAKS
+            [15,21,A_leg,E_steel], [18,21,A_leg,E_steel], # +Y Peak Legs
+            [16,22,A_leg,E_steel], [17,22,A_leg,E_steel], # -Y Peak Legs
+            [21,22,A_brace,E_steel] # Tie between peaks
+            
         ], columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
         
-        # Combined Loading (Cable weight + Diagonal Wind Load)
+        # Simulated Combined Loading 
+        # Fx = Wind Load on one face
+        # Fz = Heavy downward pull from conductor cables
         st.session_state['loads_data'] = pd.DataFrame([
-            [9, 15000.0, 10000.0, -50000.0]  # Fx (wind), Fy (wind), Fz (cable weight)
+            [13, 10000.0, 0.0, -80000.0],  # Lower Arm 1 (Wind + Heavy Cable)
+            [14, 10000.0, 0.0, -80000.0],  # Lower Arm 2 (Wind + Heavy Cable)
+            [19, 8000.0, 0.0, -60000.0],   # Upper Arm 1
+            [20, 8000.0, 0.0, -60000.0],   # Upper Arm 2
+            [21, 5000.0, 0.0, -20000.0],   # Peak 1 (Shield Wire)
+            [22, 5000.0, 0.0, -20000.0]    # Peak 2 (Shield Wire)
         ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
         
         clear_results()
