@@ -122,7 +122,7 @@ with col1:
             # 6. TOP PEAKS
             [15,21,A_leg,E_steel], [18,21,A_leg,E_steel], # +Y Peak Legs
             [16,22,A_leg,E_steel], [17,22,A_leg,E_steel], # -Y Peak Legs
-            [21,22,A_brace,E_steel] # Tie between peaks
+            [21,22,A_brace,E_steel], # Tie between peaks
 
             # 7. HORIZONTAL PLAN BRACING (Crucial for 3D torsional stability)
             [5,7,A_brace,E_steel], [6,8,A_brace,E_steel],     # L1 Diagonals
