@@ -227,14 +227,14 @@ with col2:
             if member_errors: st.warning(f"⚠️ Connectivity Warning: Cannot draw M{', M'.join(member_errors)}.")
             
             st.session_state['base_fig'] = fig_base 
-            st.plotly_chart(fig_base, use_container_width=True)
+            st.plotly_chart(fig_base, width="stretch")
 
     with tab2:
         if 'solved_truss' in st.session_state:
             ts = st.session_state['solved_truss']
             fig_res = draw_results_fbd(ts, scale_factor=current_scale, unit_label=current_unit)
             st.session_state['current_fig'] = fig_res 
-            st.plotly_chart(fig_res, use_container_width=True)
+            st.plotly_chart(fig_res, width="stretch")
         else:
             st.info("👈 Input loads and click 'Calculate Results' to view the force diagram.")
 
