@@ -123,6 +123,11 @@ with col1:
             [15,21,A_leg,E_steel], [18,21,A_leg,E_steel], # +Y Peak Legs
             [16,22,A_leg,E_steel], [17,22,A_leg,E_steel], # -Y Peak Legs
             [21,22,A_brace,E_steel] # Tie between peaks
+
+            # 7. HORIZONTAL PLAN BRACING (Crucial for 3D torsional stability)
+            [5,7,A_brace,E_steel], [6,8,A_brace,E_steel],     # L1 Diagonals
+            [9,11,A_brace,E_steel], [10,12,A_brace,E_steel],   # L2 Diagonals
+            [15,17,A_brace,E_steel], [16,18,A_brace,E_steel]   # L3 Diagonals
             
         ], columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
         
