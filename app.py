@@ -196,6 +196,58 @@ with col1:
         ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
         
         clear_results()
+    st.info("💡 **Multi-Load Benchmark:** Load the 72-Bar Space Truss to test optimization algorithms against multiple simultaneous load conditions.")
+    if st.button("🏢 Load 72-Bar Space Truss Benchmark"):
+        
+        in2m = 0.0254
+        kip2N = 4448.22
+        E_alu = 6.895e10  # 10,000 ksi
+        A_init = 0.001
+        
+        # 1. Generate 20 Nodes (4 stories + base)
+        nodes = []
+        for z in [0, 60, 120, 180, 240]:
+            z_m = z * in2m
+            w = 60 * in2m # 120-inch wide base (from -60 to +60)
+            restrain = 1 if z == 0 else 0
+            
+            nodes.extend([
+                [-w, w, z_m, restrain, restrain, restrain],  # Node 1
+                [w, w, z_m, restrain, restrain, restrain],   # Node 2
+                [w, -w, z_m, restrain, restrain, restrain],  # Node 3
+                [-w, -w, z_m, restrain, restrain, restrain]  # Node 4
+            ])
+        st.session_state['nodes_data'] = pd.DataFrame(nodes, columns=["X", "Y", "Z", "Restrain_X", "Restrain_Y", "Restrain_Z"])
+        
+        # 2. Generate 72 Members Algorithmically
+        members = []
+        for i in range(4): # Loop through the 4 stories
+            b = i * 4 + 1  # Base nodes for this story (1-based index)
+            t = b + 4      # Top nodes for this story (1-based index)
+            
+            # Verticals (Groups 1, 5, 9, 13)
+            members.extend([[b, t, A_init, E_alu], [b+1, t+1, A_init, E_alu], [b+2, t+2, A_init, E_alu], [b+3, t+3, A_init, E_alu]])
+            
+            # Horizontals (Groups 2, 6, 10, 14)
+            members.extend([[t, t+1, A_init, E_alu], [t+1, t+2, A_init, E_alu], [t+2, t+3, A_init, E_alu], [t+3, t, A_init, E_alu]])
+            
+            # Face X-Bracing (Groups 3, 7, 11, 15)
+            members.extend([[b, t+1, A_init, E_alu], [b+1, t, A_init, E_alu], 
+                            [b+1, t+2, A_init, E_alu], [b+2, t+1, A_init, E_alu],
+                            [b+2, t+3, A_init, E_alu], [b+3, t+2, A_init, E_alu],
+                            [b+3, t, A_init, E_alu], [b, t+3, A_init, E_alu]])
+                            
+            # Plan Diagonals / Top Face (Groups 4, 8, 12, 16)
+            members.extend([[t, t+2, A_init, E_alu], [t+1, t+3, A_init, E_alu]])
+            
+        st.session_state['members_data'] = pd.DataFrame(members, columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
+
+        # 3. Load Case 1: Asymmetric Wind + Gravity (Often the controlling case)
+        st.session_state['loads_data'] = pd.DataFrame([
+            [17, 5.0*kip2N, 5.0*kip2N, -5.0*kip2N] # Top corner hit by wind
+        ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
+        
+        clear_results()    
     if 'nodes_data' not in st.session_state:
         st.session_state['nodes_data'] = pd.DataFrame(columns=["X", "Y", "Z", "Restrain_X", "Restrain_Y", "Restrain_Z"])
         st.session_state['members_data'] = pd.DataFrame(columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
