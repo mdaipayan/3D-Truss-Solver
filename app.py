@@ -147,7 +147,55 @@ with col1:
         ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
         
         clear_results()
+    st.info("💡 **Academic Benchmark:** Load the Classic 25-Bar Space Truss to validate optimization algorithms against published literature.")
+    if st.button("🧊 Load 25-Bar Space Truss Benchmark"):
+        
+        # Unit Conversions (Literature is in Imperial, Solver is in SI)
+        in2m = 0.0254
+        lb2N = 4.448
+        
+        # 10 Nodes
+        st.session_state['nodes_data'] = pd.DataFrame([
+            # ---- Level 2: Top Ridge ----
+            [-37.5*in2m, 0.0, 200.0*in2m, 0, 0, 0],        # Node 1
+            [37.5*in2m, 0.0, 200.0*in2m, 0, 0, 0],         # Node 2
+            # ---- Level 1: Mid Body ----
+            [-37.5*in2m, 37.5*in2m, 100.0*in2m, 0, 0, 0],  # Node 3
+            [37.5*in2m, 37.5*in2m, 100.0*in2m, 0, 0, 0],   # Node 4
+            [37.5*in2m, -37.5*in2m, 100.0*in2m, 0, 0, 0],  # Node 5
+            [-37.5*in2m, -37.5*in2m, 100.0*in2m, 0, 0, 0], # Node 6
+            # ---- Level 0: Base (Fully Restrained) ----
+            [-100.0*in2m, 100.0*in2m, 0.0, 1, 1, 1],       # Node 7
+            [100.0*in2m, 100.0*in2m, 0.0, 1, 1, 1],        # Node 8
+            [100.0*in2m, -100.0*in2m, 0.0, 1, 1, 1],       # Node 9
+            [-100.0*in2m, -100.0*in2m, 0.0, 1, 1, 1]       # Node 10
+        ], columns=["X", "Y", "Z", "Restrain_X", "Restrain_Y", "Restrain_Z"])
 
+        # E = 10,000 ksi (Aluminum) = 68.95 GPa
+        E_alu = 6.895e10 
+        A_init = 0.001 # 1000 mm^2 (Placeholder before optimization)
+        
+        # 25 Members (Grouped symmetrically to reduce 25 variables down to 8)
+        st.session_state['members_data'] = pd.DataFrame([
+            [1,2, A_init, E_alu],                                                                      # Group 1 (A1)
+            [1,4, A_init, E_alu], [2,3, A_init, E_alu], [1,5, A_init, E_alu], [2,6, A_init, E_alu],    # Group 2 (A2)
+            [2,5, A_init, E_alu], [2,4, A_init, E_alu], [1,3, A_init, E_alu], [1,6, A_init, E_alu],    # Group 3 (A3)
+            [3,6, A_init, E_alu], [4,5, A_init, E_alu],                                                # Group 4 (A4)
+            [3,4, A_init, E_alu], [5,6, A_init, E_alu],                                                # Group 5 (A5)
+            [3,10, A_init, E_alu], [6,7, A_init, E_alu], [4,9, A_init, E_alu], [5,8, A_init, E_alu],   # Group 6 (A6)
+            [3,8, A_init, E_alu], [4,7, A_init, E_alu], [6,9, A_init, E_alu], [5,10, A_init, E_alu],   # Group 7 (A7)
+            [3,7, A_init, E_alu], [4,8, A_init, E_alu], [5,9, A_init, E_alu], [6,10, A_init, E_alu]    # Group 8 (A8)
+        ], columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
+
+        # Benchmark Multi-Directional Loading
+        st.session_state['loads_data'] = pd.DataFrame([
+            [1, 1000.0*lb2N, -10000.0*lb2N, -10000.0*lb2N],
+            [2, 0.0,         -10000.0*lb2N, -10000.0*lb2N],
+            [3, 500.0*lb2N,  0.0,           0.0],
+            [6, 600.0*lb2N,  0.0,           0.0]
+        ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
+        
+        clear_results()
     if 'nodes_data' not in st.session_state:
         st.session_state['nodes_data'] = pd.DataFrame(columns=["X", "Y", "Z", "Restrain_X", "Restrain_Y", "Restrain_Z"])
         st.session_state['members_data'] = pd.DataFrame(columns=["Node_I", "Node_J", "Area(sq.m)", "E (N/sq.m)"])
