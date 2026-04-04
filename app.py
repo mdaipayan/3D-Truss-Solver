@@ -399,9 +399,10 @@ if 'solved_truss' in st.session_state:
 
         with colD:
             with st.expander("View Full Unpartitioned Global Matrix ($K_{global}$)", expanded=True):
-                st.dataframe(pd.DataFrame(ts.K_global).style.format("{:.2e}"))
+                # Convert sparse matrix back to dense temporarily for UI rendering
+                st.dataframe(pd.DataFrame(ts.K_global.toarray()).style.format("{:.2e}"))
             with st.expander("View Reduced Stiffness Matrix ($K_{ff}$)", expanded=False):
-                st.dataframe(pd.DataFrame(ts.K_reduced).style.format("{:.2e}"))
+                st.dataframe(pd.DataFrame(ts.K_reduced.toarray()).style.format("{:.2e}"))
 
     with gb_tab3:
         st.subheader("Solving the System & Extracting Forces")
