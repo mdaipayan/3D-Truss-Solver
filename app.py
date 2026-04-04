@@ -6,6 +6,7 @@ from core_solver import TrussSystem, Node, Member
 import datetime
 import os
 from visualizer import draw_undeformed_geometry, draw_results_fbd
+from optimiser import TrussOptimizerGA
 
 st.set_page_config(page_title="Professional Truss Suite (3D)", layout="wide")
 st.title("🏗️ Professional Space Truss Analysis Developed by D Mandal")
@@ -246,6 +247,13 @@ with col1:
         st.session_state['loads_data'] = pd.DataFrame([
             [17, 5.0*kip2N, 5.0*kip2N, -5.0*kip2N] # Top corner hit by wind
         ], columns=["Node_ID", "Force_X (N)", "Force_Y (N)", "Force_Z (N)"])
+
+        # Define 16 symmetric groups for the 72-bar truss
+        # Group 0: M1-M4, Group 1: M5-M8, etc.
+        groups = {}
+        for i in range(16):
+            groups[i] = [i*4 + 1, i*4 + 2, i*4 + 3, i*4 + 4]
+        st.session_state['member_groups'] = groups
         
         clear_results()    
     if 'nodes_data' not in st.session_state:
@@ -415,3 +423,71 @@ if 'solved_truss' in st.session_state:
                     st.markdown("**Local Displacements ($u_{local}$):**")
                     st.dataframe(pd.DataFrame([m.u_local], columns=["u_ix", "u_iy", "u_iz", "u_jx", "u_jy", "u_jz"]).style.format("{:.6e}"))
                     st.success(f"**Calculated Axial Force:** {m.internal_force:.2f} N")
+# ---------------------------------------------------------
+# NEW SECTION: STRUCTURAL OPTIMIZATION (GENETIC ALGORITHM)
+# ---------------------------------------------------------
+st.markdown("---")
+st.header("🧬 AI-Driven Structural Optimization")
+st.info("Uses a Genetic Algorithm to minimize the total weight of the structure while keeping all members below the material yield stress.")
+
+col_ga1, col_ga2, col_ga3 = st.columns(3)
+with col_ga1:
+    pop_size = st.number_input("Population Size", min_value=10, max_value=200, value=50, step=10)
+with col_ga2:
+    generations = st.number_input("Generations", min_value=10, max_value=500, value=100, step=10)
+with col_ga3:
+    target_stress = st.number_input("Yield Stress Limit (MPa)", value=172.3)
+
+if st.button("🚀 Run Genetic Algorithm Optimization"):
+    if 'solved_truss' not in st.session_state or not st.session_state['solved_truss'].members:
+        st.warning("⚠️ Please load a benchmark and calculate initial results before optimizing.")
+    elif 'member_groups' not in st.session_state:
+        st.error("⚠️ Member symmetry groups are not defined for this model. Please load the 72-Bar or 25-Bar benchmark.")
+    else:
+        ts = st.session_state['solved_truss']
+        groups = st.session_state['member_groups']
+        
+        with st.spinner(f"Evolving optimal design over {generations} generations... This requires heavy matrix computation."):
+            # Initialise and run the optimiser
+            optimizer = TrussOptimizerGA(
+                base_truss=ts, 
+                member_groups=groups,
+                pop_size=pop_size,
+                generations=generations,
+                yield_stress=target_stress * 1e6  # Convert MPa to Pa
+            )
+            
+            best_chromosome, best_fitness, convergence = optimizer.run()
+            
+        st.success(f"✅ Optimization Complete! Minimum Safe Structural Weight: **{best_fitness:.2f} kg**")
+        
+        # --- Plotly Convergence Graph ---
+        fig_conv = go.Figure()
+        fig_conv.add_trace(go.Scatter(
+            y=convergence, 
+            mode='lines',
+            name='Best Weight in Generation',
+            line=dict(color='#FF4B4B', width=3)
+        ))
+        
+        fig_conv.update_layout(
+            title="Genetic Algorithm Convergence History",
+            xaxis_title="Generation (Evolutionary Step)",
+            yaxis_title="Total Structural Weight (kg)",
+            template="plotly_white",
+            hovermode="x",
+            margin=dict(l=40, r=40, t=60, b=40)
+        )
+        
+        st.plotly_chart(fig_conv, width="stretch")
+        
+        # --- Display Optimised Variables ---
+        st.subheader("📊 Optimized Cross-Sectional Areas")
+        opt_data = []
+        for group_idx, opt_area in enumerate(best_chromosome):
+            members_in_group = ", ".join([f"M{m}" for m in groups[group_idx]])
+            # Convert m^2 back to cm^2 for readable UI display
+            opt_data.append([f"Group {group_idx + 1}", members_in_group, f"{opt_area * 10000:.4f}"])
+            
+        df_opt = pd.DataFrame(opt_data, columns=["Design Variable", "Assigned Members", "Optimised Area (cm²)"])
+        st.dataframe(df_opt, use_container_width=True)
