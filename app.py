@@ -511,5 +511,4 @@ if st.button("🚀 Run Genetic Algorithm Optimization"):
         df_opt = pd.DataFrame(opt_data, columns=["Design Variable", "Assigned Members", "Optimized Area (cm²)"])
         st.dataframe(df_opt, use_container_width=True)
             
-        df_opt = pd.DataFrame(opt_data, columns=["Design Variable", "Assigned Members", "Optimised Area (cm²)"])
-        st.dataframe(df_opt, use_container_width=True)
+       
