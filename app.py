@@ -428,33 +428,48 @@ if 'solved_truss' in st.session_state:
 # ---------------------------------------------------------
 st.markdown("---")
 st.header("🧬 AI-Driven Structural Optimization")
-st.info("Uses a Genetic Algorithm to minimize the total weight of the structure while keeping all members below the material yield stress.")
+st.info("Optimize any arbitrary truss geometry. If no symmetry groups are defined, the algorithm will automatically optimize each member independently.")
 
-col_ga1, col_ga2, col_ga3 = st.columns(3)
+# Advanced UI: Generalizing for any material and geometry
+col_ga1, col_ga2, col_ga3, col_ga4 = st.columns(4)
 with col_ga1:
-    pop_size = st.number_input("Population Size", min_value=10, max_value=200, value=50, step=10)
+    pop_size = st.number_input("Population Size", min_value=10, max_value=500, value=50, step=10)
+    generations = st.number_input("Generations", min_value=10, max_value=1000, value=100, step=10)
 with col_ga2:
-    generations = st.number_input("Generations", min_value=10, max_value=500, value=100, step=10)
+    target_stress = st.number_input("Yield Stress Limit (MPa)", value=250.0) # Default to Structural Steel
+    material_density = st.number_input("Material Density (kg/m³)", value=7850.0) # Default to Steel
 with col_ga3:
-    target_stress = st.number_input("Yield Stress Limit (MPa)", value=172.3)
+    min_a = st.number_input("Min Area (cm²)", value=1.0) 
+with col_ga4:
+    max_a = st.number_input("Max Area (cm²)", value=50.0) 
 
 if st.button("🚀 Run Genetic Algorithm Optimization"):
     if 'solved_truss' not in st.session_state or not st.session_state['solved_truss'].members:
-        st.warning("⚠️ Please load a benchmark and calculate initial results before optimizing.")
-    elif 'member_groups' not in st.session_state:
-        st.error("⚠️ Member symmetry groups are not defined for this model. Please load the 72-Bar or 25-Bar benchmark.")
+        st.warning("⚠️ Please load a model and calculate initial results before optimizing.")
     else:
         ts = st.session_state['solved_truss']
-        groups = st.session_state['member_groups']
+        
+        # --- AUTO-GROUPING LOGIC ---
+        if 'member_groups' in st.session_state:
+            groups = st.session_state['member_groups']
+            st.toast(f"⚙️ Using {len(groups)} predefined symmetry groups.", icon="✅")
+        else:
+            # If no groups exist, map every member to its own independent variable
+            groups = {i: [m.id] for i, m in enumerate(ts.members)}
+            st.toast(f"⚙️ No symmetry groups found. Optimizing all {len(ts.members)} members independently.", icon="⚠️")
         
         with st.spinner(f"Evolving optimal design over {generations} generations... This requires heavy matrix computation."):
-            # Initialise and run the optimiser
+            
+            # Initialize and run the generalized optimizer
             optimizer = TrussOptimizerGA(
                 base_truss=ts, 
                 member_groups=groups,
                 pop_size=pop_size,
                 generations=generations,
-                yield_stress=target_stress * 1e6  # Convert MPa to Pa
+                yield_stress=target_stress * 1e6,     # Convert MPa to Pa
+                density=material_density,             # kg/m^3
+                min_area=min_a / 10000.0,             # Convert cm^2 to m^2
+                max_area=max_a / 10000.0              # Convert cm^2 to m^2
             )
             
             best_chromosome, best_fitness, convergence = optimizer.run()
@@ -466,7 +481,7 @@ if st.button("🚀 Run Genetic Algorithm Optimization"):
         fig_conv.add_trace(go.Scatter(
             y=convergence, 
             mode='lines',
-            name='Best Weight in Generation',
+            name='Best Weight',
             line=dict(color='#FF4B4B', width=3)
         ))
         
@@ -486,8 +501,15 @@ if st.button("🚀 Run Genetic Algorithm Optimization"):
         opt_data = []
         for group_idx, opt_area in enumerate(best_chromosome):
             members_in_group = ", ".join([f"M{m}" for m in groups[group_idx]])
-            # Convert m^2 back to cm^2 for readable UI display
-            opt_data.append([f"Group {group_idx + 1}", members_in_group, f"{opt_area * 10000:.4f}"])
+            
+            # Truncate long member lists for the UI if optimising independently
+            if len(members_in_group) > 50:
+                members_in_group = members_in_group[:47] + "..."
+                
+            opt_data.append([f"Var {group_idx + 1}", members_in_group, f"{opt_area * 10000:.4f}"])
+            
+        df_opt = pd.DataFrame(opt_data, columns=["Design Variable", "Assigned Members", "Optimized Area (cm²)"])
+        st.dataframe(df_opt, use_container_width=True)
             
         df_opt = pd.DataFrame(opt_data, columns=["Design Variable", "Assigned Members", "Optimised Area (cm²)"])
         st.dataframe(df_opt, use_container_width=True)
