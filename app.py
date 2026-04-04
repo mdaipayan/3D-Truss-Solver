@@ -476,6 +476,48 @@ if st.button("🚀 Run Genetic Algorithm Optimization"):
             
         st.success(f"✅ Optimization Complete! Minimum Safe Structural Weight: **{best_fitness:.2f} kg**")
         
+        # ---------------------------------------------------------
+        # THE LAYMAN'S EDUCATIONAL WALKTHROUGH
+        # ---------------------------------------------------------
+        with st.expander("🎓 How did the AI find this design? (Step-by-Step Walkthrough)", expanded=True):
+            st.markdown("""
+            **The Genetic Algorithm mimics biological evolution.** Instead of trying every single combination of steel bars (which would take billions of years), the AI breeds the best designs over time. Here is what just happened in the background:
+            """)
+            
+            step1, step2, step3 = st.columns(3)
+            with step1:
+                st.markdown("### 🧬 1. Initialization")
+                st.write(f"The AI randomly generated a 'population' of **{pop_size} completely different truss designs**.")
+                st.write("*Some were way too heavy (expensive), and some were too thin and collapsed under the load.*")
+            
+            with step2:
+                st.markdown("### ⚖️ 2. Evaluation")
+                st.write("The matrix solver tested every single design against the loads.")
+                st.write(f"*It assigned a 'Fitness Score' based on weight, adding a massive penalty if the stress exceeded **{target_stress} MPa**.*")
+            
+            with step3:
+                st.markdown("### 🏆 3. Selection")
+                st.write("Survival of the fittest! The AI threw away the worst designs and kept the strongest, lightest ones to be 'parents'.")
+                
+            st.markdown("---")
+            
+            step4, step5, step6 = st.columns(3)
+            with step4:
+                st.markdown("### 🔀 4. Crossover")
+                st.write("The parent designs swapped 'genes' (cross-sectional areas).")
+                st.write("*For example, a child took the thick base legs of Parent A and the thin cross-bracing of Parent B.*")
+                
+            with step5:
+                st.markdown("### 🎲 5. Mutation")
+                st.write("To prevent the designs from getting stuck, the AI randomly mutated (tweaked) a few steel bars by +/- 10%.")
+                st.write("*This injected fresh ideas into the gene pool.*")
+                
+            with step6:
+                st.markdown("### 🔄 6. Evolution")
+                st.write(f"This entire process repeated for **{generations} generations**.")
+                st.write(f"*The graph below shows how the 'fittest' design lost weight over time until it couldn't get any lighter without breaking.*")
+
+                
         # --- Plotly Convergence Graph ---
         fig_conv = go.Figure()
         fig_conv.add_trace(go.Scatter(
