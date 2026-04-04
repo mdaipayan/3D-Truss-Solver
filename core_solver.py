@@ -1,5 +1,7 @@
 import numpy as np
-
+from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import spsolve
+import warnings
 class Node:
     def __init__(self, id, x, y, z, rx=0, ry=0, rz=0):
         self.id = id
@@ -78,15 +80,24 @@ class TrussSystem:
         
     def solve(self):
         num_dofs = 3 * len(self.nodes)
-        self.K_global = np.zeros((num_dofs, num_dofs))
         self.F_global = np.zeros(num_dofs)
         
-        # 1. Assemble Global Stiffness Matrix
+        # 1. Assemble Global Stiffness Matrix using COO (Coordinate) Format
+        # This is the fastest way to build sparse matrices dynamically.
+        row_indices = []
+        col_indices = []
+        data_values = []
+        
         for member in self.members:
             for i in range(6):
                 for j in range(6):
-                    self.K_global[member.dofs[i], member.dofs[j]] += member.k_global_matrix[i, j]
+                    row_indices.append(member.dofs[i])
+                    col_indices.append(member.dofs[j])
+                    data_values.append(member.k_global_matrix[i, j])
                     
+        # Create sparse matrix and convert to Compressed Sparse Column (CSC) format for fast math
+        self.K_global = coo_matrix((data_values, (row_indices, col_indices)), shape=(num_dofs, num_dofs)).tocsc()
+        
         # 2. Assemble Load Vector
         for dof, force in self.loads.items():
             self.F_global[dof] += force
@@ -101,17 +112,24 @@ class TrussSystem:
         self.free_dofs = [i for i in range(num_dofs) if i not in restrained_dofs]
         
         # Isolate the Free-Free matrix components
-        self.K_reduced = self.K_global[np.ix_(self.free_dofs, self.free_dofs)]
+        # (Slicing by index lists is highly optimized in SciPy's CSC format)
+        self.K_reduced = self.K_global[self.free_dofs, :][:, self.free_dofs]
         self.F_reduced = self.F_global[self.free_dofs]
         
-        # Mathematical Bulletproofing: Check for structural instability
-        if self.K_reduced.size > 0:
-            cond_num = np.linalg.cond(self.K_reduced)
-            if cond_num > 1e12:
-                raise ValueError("Structure is unstable (mechanism detected). Check boundary conditions and member connectivity.")
+        # 4. Mathematical Bulletproofing & Solving
+        if self.K_reduced.shape[0] > 0:
             
-            # 4. Solve for Displacements (U_f = K_ff^-1 * F_f)
-            U_reduced = np.linalg.solve(self.K_reduced, self.F_reduced)
+            # Instead of calculating the extremely slow Condition Number, 
+            # we catch SciPy's low-level matrix warnings to detect mechanisms instantly.
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('always')
+                
+                # Fast Sparse Solver (U_f = K_ff^-1 * F_f)
+                U_reduced = spsolve(self.K_reduced, self.F_reduced)
+                
+                # If spsolve throws a warning or returns NaNs/massive numbers, it is a mechanism
+                if len(w) > 0 or np.any(np.isnan(U_reduced)) or np.max(np.abs(U_reduced)) > 1e6:
+                    raise ValueError("Structure is unstable (mechanism detected). Check boundary conditions and member connectivity.")
         else:
             U_reduced = np.array([])
             
@@ -121,7 +139,8 @@ class TrussSystem:
             self.U_global[dof] = U_reduced[idx]
             
         # 5. Calculate Support Reactions (R = K * U - F)
-        R_global = np.dot(self.K_global, self.U_global) - self.F_global
+        # Sparse matrix-vector multiplication is handled perfectly by the .dot() operator
+        R_global = self.K_global.dot(self.U_global) - self.F_global
         for node in self.nodes:
             node.rx_val = R_global[node.dofs[0]] if node.rx else 0.0
             node.ry_val = R_global[node.dofs[1]] if node.ry else 0.0
@@ -129,6 +148,5 @@ class TrussSystem:
             
         # 6. Extract Member Forces & Local Kinematics
         for member in self.members:
-            # Pull the 6 nodal displacements corresponding to this specific member
             member.u_local = np.array([self.U_global[dof] for dof in member.dofs])
             member.calculate_force()
